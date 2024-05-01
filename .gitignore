@@ -1,0 +1,12 @@
+.idea/
+
+__pycache__/
+*.py[cod]
+
+dist/
+site/
+*.egg-info/
+*.egg
+
+venv/
+.venv/

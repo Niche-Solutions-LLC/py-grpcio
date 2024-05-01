@@ -1,0 +1,21 @@
+//Automatically generated
+
+syntax = "proto3";
+package {{ camel_to_snake(string=service.name) }};
+
+service {{ service.name }} {
+{% for method in service.methods.values() %}
+    rpc {{ snake_to_camel(string=method.target.__name__) }}({{ method.request.__name__ }}) returns ({{ method.response.__name__}}) {}
+{% endfor %}
+}
+
+{% for message in service.messages.values() %}
+message {{ message.__name__ }} {
+{% for field in message.fields() %}
+    {% if field.repeated %}repeated {% endif -%}
+    {% if field.type == "map" %}map<{{ field.map_key }}, {{ field.map_value }}> {% else %}{{ field.type }} {% endif -%}
+    {{ field.name }} = {{ loop.index0 + 1 }};
+{% endfor %}
+}
+
+{% endfor %}
