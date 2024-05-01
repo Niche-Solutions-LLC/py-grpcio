@@ -1,10 +1,20 @@
 # <p align="center">Pydantic & gRPC</p>
 
-`py-grpcio` is a microframework and high-level wrapper of [**grpcio**](https://pypi.org/project/grpcio/) to simplify 
-work with the original library using abstractions, 
+[**py-grpcio**](https://pypi.org/project/py-grpcio/) is a microframework and high-level wrapper of 
+[**grpcio**](https://pypi.org/project/grpcio/) to simplify work with the original library using abstractions, 
 useful python objects and [**pydantic**](https://pypi.org/project/pydantic/) models.
 
-Examples of use are given below and also duplicated in the [**example**](example) directory.
+Examples of use are given below and also duplicated in the 
+[**example**](https://github.com/Niche-Solutions-LLC/py-grpcio/tree/main/example) directory.
+
+---
+
+## Install latest
+
+```shell
+pip install py-grpcio
+```
+
 
 ---
 
