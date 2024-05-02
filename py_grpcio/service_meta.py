@@ -27,7 +27,7 @@ class BaseServiceMeta(type):
         cls.services: ModuleType | None = None
 
     def __getattr__(cls: 'BaseServiceMeta', attr_name: str) -> ServerMethodGRPC | Any:
-        if method := cls.methods.get(attr_name.lower()):
+        if method := cls.methods.get(camel_to_snake(string=attr_name)):
             return ServerMethodGRPC(method=method)
         return getattr(cls, attr_name)
 
