@@ -1,8 +1,9 @@
+from inspect import isclass
 from typing import Type, Any, Callable
 from typing_extensions import Annotated
 from types import FunctionType, ModuleType
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field as PyField
 from pydantic.fields import FieldInfo  # noqa: FieldInfo
 from pydantic_core.core_schema import CoreSchema, no_info_wrap_validator_function, str_schema, to_string_ser_schema
 
@@ -33,6 +34,19 @@ class Message(BaseModel):
             for field_name, field_info in cls.model_fields.items()
         ]
 
+    @classmethod
+    def get_additional_messages_from_fields(
+            cls, model_fields: dict[str, FieldInfo] | None = None
+    ) -> dict[str, Type['Message']]:
+        messages: dict[str, Type[Message]] = {}
+        for field_name, field_info in (model_fields and model_fields.items()) or cls.model_fields.items():
+            field_type: type | None = field_info.annotation
+            if isclass(field_type) and issubclass(field_type, Message):
+                messages[field_type.__name__]: Type[Message] = field_type
+                if additional_messages := cls.get_additional_messages_from_fields(model_fields=field_type.model_fields):
+                    messages.update(**additional_messages)
+        return messages
+
 
 class ModuleTypePydanticAnnotation:
     @classmethod
@@ -56,6 +70,7 @@ class Method(BaseModel):
     target: Callable[..., Message]
     protos: Annotated[ModuleType, ModuleTypePydanticAnnotation] | None = None
     services: Annotated[ModuleType, ModuleTypePydanticAnnotation] | None = None
+    additional_messages: dict[str, Type[Message]] = PyField(default_factory=dict)
 
     @classmethod
     def from_target(cls, target: FunctionType) -> 'Method':
@@ -72,9 +87,12 @@ class Method(BaseModel):
 
     @property
     def messages(self: 'Method') -> dict[str, Type[Message]]:
+        self.additional_messages.update(self.request.get_additional_messages_from_fields())
+        self.additional_messages.update(self.response.get_additional_messages_from_fields())
         return {
+            **self.additional_messages,
             self.request.__name__: self.request,
-            self.response.__name__: self.response
+            self.response.__name__: self.response,
         }
 
     @property
@@ -84,3 +102,9 @@ class Method(BaseModel):
     @property
     def proto_response(self: 'Method') -> Type[ProtoMessage] | None:
         return getattr(self.protos, self.response.__name__)
+
+    def get_additional_proto(self: 'Method', proto_name: str) -> Type[ProtoMessage] | None:
+        return getattr(self.protos, proto_name)
+
+    def get_additional_message(self: 'Method', message_name: str) -> Type[Message] | None:
+        return self.additional_messages.get(message_name)

@@ -1,4 +1,5 @@
 from uuid import UUID
+from enum import Enum
 from inspect import isclass
 from datetime import datetime
 
@@ -80,7 +81,9 @@ def parse_field_type(field_name: str, field_type: type) -> dict[str, Any]:
         if issubclass(origin, Iterable):  # noqa: origin
             return parse_type_sequence(field_name=field_name, field_type=field_type, args=args)
         raise TypeError(f'Field unsupported type `{field_type}`')
-    elif isclass(field_type) and issubclass(field_type, BaseModel):
-        return {'name': field_name, 'type': field_type.__name__}
-    else:
-        raise TypeError(f'Field unsupported type `{field_type}`')
+    elif isclass(field_type):
+        if issubclass(field_type, BaseModel):
+            return {'name': field_name, 'type': field_type.__name__}
+        elif issubclass(field_type, Enum):
+            return {'name': field_name, 'type': ProtoBufTypes.STRING}
+    raise TypeError(f'Field unsupported type `{field_type}`')

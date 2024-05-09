@@ -1,11 +1,6 @@
-from example.server.core import BaseExampleService, PingRequest, PingResponse
-
 from py_grpcio import BaseServer
 
-
-class ExampleService(BaseExampleService):
-    async def ping(self: 'ExampleService', request: PingRequest) -> PingResponse:
-        return PingResponse(id=request.id)
+from example.server.service import ExampleService
 
 
 if __name__ == '__main__':

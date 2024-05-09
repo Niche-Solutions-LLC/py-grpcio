@@ -10,6 +10,7 @@ from grpc_interceptor.server import AsyncServerInterceptor
 from google.protobuf.message import Message
 
 from py_grpcio.method import ServerMethodGRPC
+from py_grpcio.exceptions import RunTimeServerError
 
 
 class ServerInterceptor(AsyncServerInterceptor):
@@ -31,6 +32,13 @@ class ServerInterceptor(AsyncServerInterceptor):
             )
             context.set_code(grpc_exc.status_code)
             context.set_details(grpc_exc.details)
+        except RunTimeServerError as py_grpc_io_exc:
+            logger.error(py_grpc_io_exc)
+            context.set_code(py_grpc_io_exc.status_code)
+            context.set_details(
+                'Internal Server Error'
+                if py_grpc_io_exc.status_code == StatusCode.INTERNAL else py_grpc_io_exc.details
+            )
         except ValidationError as exc:
             context.set_code(StatusCode.INVALID_ARGUMENT)
             context.set_details(exc.json())

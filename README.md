@@ -32,6 +32,8 @@ from pydantic import Field
 
 from py_grpcio import Message
 
+from example.server.service.enums import Names
+
 
 class PingRequest(Message):
     id: UUID = Field(default_factory=uuid4)
@@ -40,6 +42,21 @@ class PingRequest(Message):
 class PingResponse(Message):
     id: UUID
     timestamp: datetime = Field(default_factory=datetime.now)
+
+
+class ComplexModel(Message):
+    name: Names
+
+
+class ComplexRequest(Message):
+    id: UUID
+    model: ComplexModel
+
+
+class ComplexResponse(Message):
+    id: UUID
+    model: ComplexModel
+
 ```
 
 ---
@@ -56,13 +73,18 @@ from abc import abstractmethod
 
 from py_grpcio import BaseService
 
-from example.server.core.models import PingRequest, PingResponse
+from example.server.service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
 
 
 class BaseExampleService(BaseService):
     @abstractmethod
-    async def ping(self, request: PingRequest) -> PingResponse:
+    async def ping(self: 'BaseExampleService', request: PingRequest) -> PingResponse:
         ...
+
+    @abstractmethod
+    async def complex(self: 'BaseExampleService', request: ComplexRequest) -> ComplexResponse:
+        ...
+
 ```
 
 ---
@@ -70,20 +92,34 @@ class BaseExampleService(BaseService):
 Full implementation of the **gRPC** service with methods.
 
 ```python
-from example.server.core import BaseExampleService, PingRequest, PingResponse
-
-from py_grpcio import BaseServer
+from example.server.service.base import BaseExampleService
+from example.server.service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
 
 
 class ExampleService(BaseExampleService):
-    async def ping(self, request: PingRequest) -> PingResponse:
+    async def ping(self: 'ExampleService', request: PingRequest) -> PingResponse:
         return PingResponse(id=request.id)
+
+    async def complex(self: 'BaseExampleService', request: ComplexRequest) -> ComplexResponse:
+        return ComplexResponse(**request.model_dump())
+
+```
+
+---
+
+Run the ExampleService on Server.
+
+```python
+from py_grpcio import BaseServer
+
+from example.server.service import ExampleService
 
 
 if __name__ == '__main__':
     server: BaseServer = BaseServer()
     server.add_service(service=ExampleService)
     server.run()
+
 ```
 
 ---
@@ -101,13 +137,50 @@ from abc import abstractmethod
 
 from py_grpcio import BaseService
 
-from example.client.core.models import PingRequest, PingResponse
+from example.server.service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
 
 
 class ExampleService(BaseService):
     @abstractmethod
-    async def ping(self, request: PingRequest) -> PingResponse:
+    async def ping(self: 'ExampleService', request: PingRequest) -> PingResponse:
         ...
+
+    @abstractmethod
+    async def complex(self: 'ExampleService', request: ComplexRequest) -> ComplexResponse:
+        ...
+
+```
+
+---
+
+Calling the ExampleService endpoints by Client.
+
+```python
+from uuid import uuid4
+from asyncio import run
+
+from loguru import logger
+
+from example.client.services.example.enums import Names
+from example.client.services.example import (
+    ExampleService, PingRequest, PingResponse, ComplexModel, ComplexRequest, ComplexResponse
+)
+
+service: ExampleService = ExampleService(host='127.0.0.1')
+
+
+async def main() -> None:
+    response: PingResponse = await service.ping(request=PingRequest())
+    logger.info(f'ping response: {response}')
+
+    response: ComplexResponse = await service.complex(
+        request=ComplexRequest(id=uuid4(), model=ComplexModel(name=Names.NAME_1))
+    )
+    logger.info(f'complex response: {response}')
+
+
+if __name__ == '__main__':
+    run(main())
 
 ```
 

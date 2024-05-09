@@ -1,16 +1,25 @@
+from uuid import uuid4
 from asyncio import run
 
 from loguru import logger
 
-from example.client.core import ExampleService, PingRequest, PingResponse
+from example.client.services.example.enums import Names
+from example.client.services.example import (
+    ExampleService, PingRequest, PingResponse, ComplexModel, ComplexRequest, ComplexResponse
+)
 
 service: ExampleService = ExampleService(host='127.0.0.1')
 
 
-async def call_ping() -> None:
+async def main() -> None:
     response: PingResponse = await service.ping(request=PingRequest())
-    logger.info(f'response: {response}')
+    logger.info(f'ping response: {response}')
+
+    response: ComplexResponse = await service.complex(
+        request=ComplexRequest(id=uuid4(), model=ComplexModel(name=Names.NAME_1))
+    )
+    logger.info(f'complex response: {response}')
 
 
 if __name__ == '__main__':
-    run(call_ping())
+    run(main())
