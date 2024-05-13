@@ -11,8 +11,8 @@ from grpc.aio import ServicerContext
 from google.protobuf.message import Message as ProtoMessage
 
 from py_grpcio.utils import snake_to_camel
-from py_grpcio.exceptions import RunTimeServerError
-from py_grpcio.models import Method, Message, Target
+from py_grpcio.models import Target, Method, Message
+from py_grpcio.exceptions import SendEmpty, RunTimeServerError
 
 from py_grpcio.middleware import BaseMiddleware
 
@@ -88,9 +88,11 @@ class ServerMethodGRPC(MethodGRPC):
         request: Message = self.proto_to_pydantic(message=message, model=self.method.request, method=self.method)
         try:
             if self.wrapped_target:
-                response: Message = await self.wrapped_target(request=request, context=context)
+                response: Message | None = await self.wrapped_target(request=request, context=context)
             else:
-                response: Message = await self.target(request=request)
+                response: Message | None = await self.target(request=request)
+            if not response:
+                raise SendEmpty(text='Method did not return anything')
             return self.pydantic_to_proto(message=response, model=self.method.proto_response, method=self.method)
         except ValidationError as exc:
             raise RunTimeServerError(details={'validation_error': exc.json()})

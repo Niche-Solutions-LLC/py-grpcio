@@ -10,7 +10,7 @@ from grpc_interceptor.server import AsyncServerInterceptor
 from google.protobuf.message import Message
 
 from py_grpcio.method import ServerMethodGRPC
-from py_grpcio.exceptions import RunTimeServerError
+from py_grpcio.exceptions import SendEmpty, RunTimeServerError
 
 
 class ServerInterceptor(AsyncServerInterceptor):
@@ -32,6 +32,9 @@ class ServerInterceptor(AsyncServerInterceptor):
             )
             context.set_code(grpc_exc.status_code)
             context.set_details(grpc_exc.details)
+        except SendEmpty as exc:
+            context.set_code(StatusCode.ABORTED)
+            context.set_details(exc.text)
         except RunTimeServerError as py_grpc_io_exc:
             logger.error(py_grpc_io_exc)
             context.set_code(py_grpc_io_exc.status_code)

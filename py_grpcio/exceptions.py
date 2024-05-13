@@ -17,6 +17,10 @@ class MethodSignatureException(PyGrpcIOException):
     ...
 
 
+class SendEmpty(PyGrpcIOException):
+    ...
+
+
 class RunTimeServerError(PyGrpcIOException):
     def __init__(
         self: 'RunTimeServerError',
