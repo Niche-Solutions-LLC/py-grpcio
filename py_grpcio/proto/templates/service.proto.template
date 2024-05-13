@@ -5,7 +5,7 @@ package {{ camel_to_snake(string=service.name) }};
 
 service {{ service.name }} {
 {% for method in service.methods.values() %}
-    rpc {{ snake_to_camel(string=method.target.__name__) }}({{ method.request.__name__ }}) returns ({{ method.response.__name__}}) {}
+    rpc {{ snake_to_camel(string=method.target.func.__name__) }}({{ method.request.__name__ }}) returns ({{ method.response.__name__}}) {}
 {% endfor %}
 }
 

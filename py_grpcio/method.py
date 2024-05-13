@@ -1,16 +1,20 @@
+from typing import Any, Type, Callable
+
 from asyncio import to_thread
 from warnings import catch_warnings
-from typing import Any, Type, Callable
 
 from pydantic import ValidationError
 
 from grpc import experimental
+from grpc.aio import ServicerContext
 
 from google.protobuf.message import Message as ProtoMessage
 
 from py_grpcio.utils import snake_to_camel
-from py_grpcio.models import Method, Message
 from py_grpcio.exceptions import RunTimeServerError
+from py_grpcio.models import Method, Message, Target
+
+from py_grpcio.middleware import BaseMiddleware
 
 type Service = type
 type MethodType = Callable[[ProtoMessage, str, bool], ProtoMessage]
@@ -21,7 +25,7 @@ class MethodGRPC:
         self.method: Method = method
 
     def __getattr__(self: 'MethodGRPC', attr_name: str) -> Any:
-        return getattr(self.method.target, attr_name)
+        return getattr(self.method.target.func, attr_name)
 
     @classmethod
     def proto_to_pydantic(
@@ -64,10 +68,29 @@ class MethodGRPC:
 
 
 class ServerMethodGRPC(MethodGRPC):
-    async def __call__(self: 'ServerMethodGRPC', message: ProtoMessage) -> ProtoMessage | None:
+    def __init__(self, method: Method, middlewares: set[Type[BaseMiddleware]]):
+        super().__init__(method=method)
+        self.middlewares: set[Type[BaseMiddleware]] = middlewares
+
+        self.target: Target = self.method.target
+        self.wrapped_target: BaseMiddleware | None = None
+        self.wrap_target()
+
+    def wrap_target(self) -> None:
+        for middleware in self.middlewares:
+            self.wrapped_target = middleware(target=self.wrapped_target or self.target)
+
+    async def __call__(
+        self: 'ServerMethodGRPC',
+        message: ProtoMessage,
+        context: ServicerContext
+    ) -> ProtoMessage | None:
         request: Message = self.proto_to_pydantic(message=message, model=self.method.request, method=self.method)
         try:
-            response: Message = await self.method.target(self=self, request=request)
+            if self.wrapped_target:
+                response: Message = await self.wrapped_target(request=request, context=context)
+            else:
+                response: Message = await self.target(request=request)
             return self.pydantic_to_proto(message=response, model=self.method.proto_response, method=self.method)
         except ValidationError as exc:
             raise RunTimeServerError(details={'validation_error': exc.json()})
@@ -96,7 +119,7 @@ class ClientMethodGRPC(MethodGRPC):
             model=self.method.proto_request,
             method=self.method
         )
-        method: Callable = getattr(self.service, snake_to_camel(self.method.target.__name__))
+        method: Callable = getattr(self.service, snake_to_camel(self.method.target.func.__name__))
         proto_response: ProtoMessage = await self.call_grpc_method(
             method=method,
             request=proto_request,

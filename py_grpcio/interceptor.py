@@ -22,7 +22,7 @@ class ServerInterceptor(AsyncServerInterceptor):
         method_name: str,
     ) -> Message | None:
         try:
-            response: Message | None = await route(message=message)
+            response: Message | None = await route(message=message, context=context)
             logger.info(f'{context.peer()} - {route.__qualname__}')
             return response
         except GrpcException as grpc_exc:

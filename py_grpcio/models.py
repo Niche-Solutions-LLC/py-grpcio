@@ -1,9 +1,10 @@
 from inspect import isclass
-from typing import Type, Any, Callable
+from functools import partial
+from typing import Type, Any, TypeVar
 from typing_extensions import Annotated
 from types import FunctionType, ModuleType
 
-from pydantic import BaseModel, Field as PyField
+from pydantic import BaseModel, ConfigDict, Field as PyField
 from pydantic.fields import FieldInfo  # noqa: FieldInfo
 from pydantic_core.core_schema import CoreSchema, no_info_wrap_validator_function, str_schema, to_string_ser_schema
 
@@ -12,6 +13,8 @@ from google.protobuf.message import Message as ProtoMessage
 from py_grpcio.exceptions import MethodSignatureException
 
 from py_grpcio.proto import ProtoBufTypes, parse_field_type
+
+Target: 'Target' = TypeVar('Target', bound=partial)
 
 
 class Field(BaseModel):
@@ -67,10 +70,12 @@ class ModuleTypePydanticAnnotation:
 class Method(BaseModel):
     request: Type[Message]
     response: Type[Message]
-    target: Callable[..., Message]
+    target: Target
     protos: Annotated[ModuleType, ModuleTypePydanticAnnotation] | None = None
     services: Annotated[ModuleType, ModuleTypePydanticAnnotation] | None = None
     additional_messages: dict[str, Type[Message]] = PyField(default_factory=dict)
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
     def from_target(cls, target: FunctionType) -> 'Method':
@@ -83,7 +88,7 @@ class Method(BaseModel):
             raise MethodSignatureException(
                 text=f'The `{target.__qualname__}` method should return an object of type subclass `Message`'
             )
-        return cls(target=target, request=requst_message, response=response_message)
+        return cls(target=partial(target, self=target.__class__), request=requst_message, response=response_message)
 
     @property
     def messages(self: 'Method') -> dict[str, Type[Message]]:

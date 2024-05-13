@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from types import ModuleType
 from typing import Any, Type
+from types import ModuleType
 
 from jinja2 import Environment, FileSystemLoader, Template
 
@@ -9,6 +9,8 @@ from grpc import protos_and_services
 
 from py_grpcio.models import Message, Method
 from py_grpcio.method import ServerMethodGRPC
+from py_grpcio.middleware import BaseMiddleware
+
 from py_grpcio.utils import is_method, camel_to_snake, snake_to_camel
 
 environment: Environment = Environment(
@@ -25,11 +27,15 @@ class BaseServiceMeta(type):
         cls.messages: dict[str, Type[Message]] = {}
         cls.protos: ModuleType | None = None
         cls.services: ModuleType | None = None
+        cls.middlewares: set[Type[BaseMiddleware]] = set()
 
     def __getattr__(cls: 'BaseServiceMeta', attr_name: str) -> ServerMethodGRPC | Any:
         if method := cls.methods.get(camel_to_snake(string=attr_name)):
-            return ServerMethodGRPC(method=method)
+            return ServerMethodGRPC(method=method, middlewares=cls.middlewares)
         return getattr(cls, attr_name)
+
+    def set_middlewares(cls, middlewares: set[Type[BaseMiddleware]]) -> None:
+        cls.middlewares: set[Type[BaseMiddleware]] = middlewares
 
     def methods_and_messages(cls: 'BaseServiceMeta') -> None:
         for method_name, target in cls.__dict__.items():
@@ -53,7 +59,7 @@ class BaseServiceMeta(type):
         return path
 
     def get_method(cls: 'BaseServiceMeta', method_name: str) -> ServerMethodGRPC:
-        return ServerMethodGRPC(method=getattr(cls, method_name))
+        return ServerMethodGRPC(method=getattr(cls, method_name), middlewares=cls.middlewares)
 
     def init_protos_and_services(cls: 'BaseServiceMeta', proto_dir: Path) -> None:
         cls.protos, cls.services = protos_and_services(protobuf_path=str(cls.gen_proto(proto_dir=proto_dir)))
