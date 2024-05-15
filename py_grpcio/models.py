@@ -1,8 +1,8 @@
 from inspect import isclass
 from functools import partial
-from typing import Type, Any, TypeVar
 from typing_extensions import Annotated
-from types import FunctionType, ModuleType
+from types import FunctionType, ModuleType, GenericAlias
+from typing import Type, Any, TypeVar, Iterable, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field as PyField
 from pydantic.fields import FieldInfo  # noqa: FieldInfo
@@ -38,16 +38,24 @@ class Message(BaseModel):
         ]
 
     @classmethod
-    def get_additional_messages_from_fields(
-            cls, model_fields: dict[str, FieldInfo] | None = None
+    def get_additional_messages(
+        cls, model_fields: dict[str, FieldInfo] | None = None
     ) -> dict[str, Type['Message']]:
         messages: dict[str, Type[Message]] = {}
         for field_name, field_info in (model_fields and model_fields.items()) or cls.model_fields.items():
             field_type: type | None = field_info.annotation
             if isclass(field_type) and issubclass(field_type, Message):
                 messages[field_type.__name__]: Type[Message] = field_type
-                if additional_messages := cls.get_additional_messages_from_fields(model_fields=field_type.model_fields):
+                if additional_messages := cls.get_additional_messages(model_fields=field_type.model_fields):
                     messages.update(**additional_messages)
+            elif isinstance(field_type, GenericAlias) and (origin := get_origin(tp=field_type)) is not None:
+                if issubclass(origin, Iterable):
+                    if len(args := field_type.__args__) != 1:
+                        raise
+                    if isclass(sub_field_type := args[0]) and issubclass(sub_field_type, Message):
+                        messages[sub_field_type.__name__]: Type[Message] = sub_field_type
+                        if additional_messages := cls.get_additional_messages(model_fields=sub_field_type.model_fields):
+                            messages.update(**additional_messages)
         return messages
 
 
@@ -92,8 +100,8 @@ class Method(BaseModel):
 
     @property
     def messages(self: 'Method') -> dict[str, Type[Message]]:
-        self.additional_messages.update(self.request.get_additional_messages_from_fields())
-        self.additional_messages.update(self.response.get_additional_messages_from_fields())
+        self.additional_messages.update(self.request.get_additional_messages())
+        self.additional_messages.update(self.response.get_additional_messages())
         return {
             **self.additional_messages,
             self.request.__name__: self.request,

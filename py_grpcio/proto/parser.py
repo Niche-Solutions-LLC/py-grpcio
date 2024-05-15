@@ -5,7 +5,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from types import UnionType, NoneType
+from types import UnionType, NoneType, GenericAlias
 from typing import Any, Annotated, Union, Iterable, get_origin
 
 from py_grpcio.proto import ProtoBufTypes
@@ -37,7 +37,7 @@ def parse_type(field_name: str, python_value: Any, field_type: type, allow_model
     raise TypeError(f'Field `{field_name}`: unsupported type `{python_value}` in type `{field_type}`.')
 
 
-def parse_type_union(field_name: str, field_type: type | None, args: list) -> dict[str, Any]:
+def parse_type_union(field_name: str, field_type: type | None | GenericAlias, args: list) -> dict[str, Any]:
     if NoneType in args:
         args.remove(NoneType)
     if len(args) != 1:
@@ -48,7 +48,7 @@ def parse_type_union(field_name: str, field_type: type | None, args: list) -> di
     return {'name': field_name, 'type': parse_type(field_name=field_name, python_value=args[0], field_type=field_type)}
 
 
-def parse_type_sequence(field_name: str, field_type: type | None, args: list) -> dict[str, Any]:
+def parse_type_sequence(field_name: str, field_type: type | None | GenericAlias, args: list) -> dict[str, Any]:
     if len(args) != 1:
         raise TypeError(f'Field `{field_name}`: type `{field_type}` must have only one subtype, not {len(args)}.')
     return {
@@ -58,7 +58,7 @@ def parse_type_sequence(field_name: str, field_type: type | None, args: list) ->
     }
 
 
-def parse_type_mapping(field_name: str, field_type: type | None, args: list) -> dict[str, Any]:
+def parse_type_mapping(field_name: str, field_type: type | None | GenericAlias, args: list) -> dict[str, Any]:
     if len(args) != 2:
         raise TypeError(f'Field `{field_name}`: type `{field_type}` must have two subtypes, not {len(args)}')
     return {
@@ -72,18 +72,18 @@ def parse_type_mapping(field_name: str, field_type: type | None, args: list) -> 
 def parse_field_type(field_name: str, field_type: type) -> dict[str, Any]:
     if proto_buf_type := TYPE_MAPPING.get(field_type):
         return {'name': field_name, 'type': proto_buf_type}
-    elif (origin := get_origin(tp=field_type)) is not None:
-        args: list = list(field_type.__args__)  # noqa: __args__
+    elif isinstance(field_type, GenericAlias) and (origin := get_origin(tp=field_type)) is not None:
+        args: list = list(field_type.__args__)
         if origin in (Union, UnionType):
             return parse_type_union(field_name=field_name, field_type=field_type, args=args)
         if issubclass(origin, dict):
             return parse_type_mapping(field_name=field_name, field_type=field_type, args=args)
-        if issubclass(origin, Iterable):  # noqa: origin
+        if issubclass(origin, Iterable):
             return parse_type_sequence(field_name=field_name, field_type=field_type, args=args)
         raise TypeError(f'Field unsupported type `{field_type}`')
     elif isclass(field_type):
         if issubclass(field_type, BaseModel):
             return {'name': field_name, 'type': field_type.__name__}
-        elif issubclass(field_type, Enum):
+        if issubclass(field_type, Enum):
             return {'name': field_name, 'type': ProtoBufTypes.STRING}
     raise TypeError(f'Field unsupported type `{field_type}`')
