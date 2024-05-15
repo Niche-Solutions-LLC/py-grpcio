@@ -51,7 +51,9 @@ class Message(BaseModel):
             elif isinstance(field_type, GenericAlias) and (origin := get_origin(tp=field_type)) is not None:
                 if issubclass(origin, Iterable):
                     if len(args := field_type.__args__) != 1:
-                        raise
+                        raise TypeError(
+                            f'Field `{field_name}`: type `{field_type}` must have only one subtype, not {len(args)}.'
+                        )
                     if isclass(sub_field_type := args[0]) and issubclass(sub_field_type, Message):
                         messages[sub_field_type.__name__]: Type[Message] = sub_field_type
                         if additional_messages := cls.get_additional_messages(model_fields=sub_field_type.model_fields):
