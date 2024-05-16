@@ -42,7 +42,7 @@ class Message(BaseModel):
         cls, model_fields: dict[str, FieldInfo] | None = None
     ) -> dict[str, Type['Message']]:
         messages: dict[str, Type[Message]] = {}
-        for field_name, field_info in (model_fields and model_fields.items()) or cls.model_fields.items():
+        for field_name, field_info in (model_fields is not None and model_fields.items()) or cls.model_fields.items():
             field_type: type | None = field_info.annotation
             if isclass(field_type) and issubclass(field_type, Message):
                 messages[field_type.__name__]: Type[Message] = field_type
