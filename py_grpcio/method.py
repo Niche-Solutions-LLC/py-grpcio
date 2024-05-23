@@ -61,6 +61,8 @@ class MethodGRPC:
                     model=method.get_additional_proto(proto_name=field_info.annotation.__name__),
                     method=method
                 )
+            elif field_info.annotation is bytes:
+                value: bytes = getattr(message, field_name)
             else:
                 value: Any = dump[field_name]
             params[field_name] = value
