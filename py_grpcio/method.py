@@ -50,16 +50,18 @@ class MethodGRPC:
         cls: Type['MethodGRPC'],
         message: Message,
         model: Type[ProtoMessage],
-        method: Method
+        method: Method,
+        warnings: bool = False
     ) -> ProtoMessage:
-        dump: dict[str, Any] = message.model_dump(mode='json')
+        dump: dict[str, Any] = message.model_dump(mode='json', warnings=warnings)
         params: dict[str, Any] = {}
         for field_name, field_info in message.model_fields.items():
             if field_info.annotation.__name__ in method.additional_messages:
                 value: ProtoMessage = cls.pydantic_to_proto(
                     message=getattr(message, field_name),
                     model=method.get_additional_proto(proto_name=field_info.annotation.__name__),
-                    method=method
+                    method=method,
+                    warnings=warnings
                 )
             elif field_info.annotation is bytes:
                 value: bytes = getattr(message, field_name)
