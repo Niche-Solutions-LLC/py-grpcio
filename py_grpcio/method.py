@@ -16,6 +16,8 @@ from py_grpcio.exceptions import SendEmpty, RunTimeServerError
 
 from py_grpcio.middleware import BaseMiddleware
 
+from py_grpcio.proto.enums import ProtoBufTypes
+
 type Service = type
 type MethodType = Callable[[ProtoMessage, str, bool], ProtoMessage]
 
@@ -51,9 +53,12 @@ class MethodGRPC:
         message: Message,
         model: Type[ProtoMessage],
         method: Method,
-        warnings: bool = False
+        warnings: bool = False,
+        exclude_types: set[ProtoBufTypes | str] | None = None
     ) -> ProtoMessage:
-        dump: dict[str, Any] = message.model_dump(mode='json', warnings=warnings)
+        exclude_types: set[ProtoBufTypes | str] = exclude_types or {ProtoBufTypes.BYTES}
+        exclude: set[str] = {field.name for field in message.fields() if field.type in exclude_types}
+        dump: dict[str, Any] = message.model_dump(mode='json', warnings=warnings, exclude=exclude)
         params: dict[str, Any] = {}
         for field_name, field_info in message.model_fields.items():
             if field_info.annotation.__name__ in method.additional_messages:
@@ -61,7 +66,8 @@ class MethodGRPC:
                     message=getattr(message, field_name),
                     model=method.get_additional_proto(proto_name=field_info.annotation.__name__),
                     method=method,
-                    warnings=warnings
+                    warnings=warnings,
+                    exclude_types=exclude_types
                 )
             elif field_info.annotation is bytes:
                 value: bytes = getattr(message, field_name)
