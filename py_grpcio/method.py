@@ -18,6 +18,7 @@ from py_grpcio.middleware import BaseMiddleware
 
 from py_grpcio.proto.enums import ProtoBufTypes
 
+type Delay = float
 type Service = type
 type MethodType = Callable[[ProtoMessage, str, bool], ProtoMessage]
 
@@ -109,12 +110,20 @@ class ServerMethodGRPC(MethodGRPC):
 
 
 class ClientMethodGRPC(MethodGRPC):
-    def __init__(self: 'ClientMethodGRPC', method: Method, service_name: str, host: str, port: int = 50051):
+    def __init__(
+        self: 'ClientMethodGRPC',
+        method: Method,
+        service_name: str,
+        host: str,
+        port: int = 50051,
+        timeout_delay: Delay = 1
+    ):
         super().__init__(method=method)
         self.method: Method = method
         self.service_name: str = service_name
         self.host: str = host
         self.port: int = port
+        self.timeout_delay: Delay = timeout_delay
 
     @property
     def service(self: 'ClientMethodGRPC') -> Service:
@@ -136,6 +145,7 @@ class ClientMethodGRPC(MethodGRPC):
             method=method,
             request=proto_request,
             target=f'{self.host}:{self.port}',
-            insecure=True
+            insecure=True,
+            timeout=self.timeout_delay
         )
         return self.proto_to_pydantic(message=proto_response, model=self.method.response, method=self.method)
