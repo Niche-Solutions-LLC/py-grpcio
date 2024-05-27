@@ -1,7 +1,7 @@
 from uuid import UUID
 from enum import Enum
 from inspect import isclass
-from datetime import datetime
+from datetime import date, time, datetime
 
 from pydantic import BaseModel
 
@@ -19,6 +19,8 @@ TYPE_MAPPING: dict[type, ProtoBufTypes] = {
     dict: ProtoBufTypes.MAP,
 
     UUID: ProtoBufTypes.STRING,
+    date: ProtoBufTypes.STRING,
+    time: ProtoBufTypes.STRING,
     datetime: ProtoBufTypes.STRING,
 }
 
