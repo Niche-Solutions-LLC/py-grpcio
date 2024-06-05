@@ -61,6 +61,9 @@ class Message(BaseModel):
         return messages
 
 
+BytesMessage: Type['BytesMessage'] = create_model('BytesMessage', bytes=(bytes, ...), __base__=Message)
+
+
 class ModuleTypePydanticAnnotation:
     @classmethod
     def validate_object_id(cls: Type['ModuleTypePydanticAnnotation'], value: Any, _) -> ModuleType:
@@ -102,8 +105,8 @@ class Method(BaseModel):
         return cls(
             mode=mode,
             target=partial(target, self=target.__class__),
-            request=requst_message,
-            response=response_message
+            request=BytesMessage if mode is mode.BYTES else requst_message,
+            response=BytesMessage if mode is mode.BYTES else response_message
         )
 
     @property
@@ -118,10 +121,7 @@ class Method(BaseModel):
 
     @property
     def betes_messages(self: 'Method') -> dict[str, Type[Message]]:
-        return {
-            self.request.__name__: create_model(self.request.__name__, bytes=(bytes, ...), __base__=Message),
-            self.response.__name__: create_model(self.response.__name__, bytes=(bytes, ...), __base__=Message),
-        }
+        return {'BytesMessage': BytesMessage}
 
     @property
     def messages(self: 'Method') -> dict[str, Type[Message]]:
