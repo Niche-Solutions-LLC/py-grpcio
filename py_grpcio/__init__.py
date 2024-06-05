@@ -5,4 +5,10 @@ from py_grpcio.middleware import BaseMiddleware
 
 from py_grpcio.__meta__ import __version__
 
-__all__: list[str] = ['BaseServer', 'BaseService', 'BaseMiddleware', 'Message', '__version__']
+__all__: list[str] = [
+    'BaseServer',
+    'BaseService',
+    'BaseMiddleware',
+    'Message',
+    '__version__'
+]

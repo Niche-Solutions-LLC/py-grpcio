@@ -3,9 +3,10 @@ from asyncio import run
 
 from loguru import logger
 
-from example.client.services.example.enums import Names
-from example.client.services.example import (
-    ExampleService, PingRequest, PingResponse, ComplexModel, ComplexRequest, ComplexResponse
+from services.example import (
+    ExampleService, Names,
+    PingRequest, PingResponse,
+    ComplexModel, ComplexRequest, ComplexResponse
 )
 
 service: ExampleService = ExampleService(host='127.0.0.1')

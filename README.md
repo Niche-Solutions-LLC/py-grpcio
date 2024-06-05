@@ -32,7 +32,7 @@ from pydantic import Field
 
 from py_grpcio import Message
 
-from example.server.service.enums import Names
+from example.base.server.service.enums import Names
 
 
 class PingRequest(Message):
@@ -67,13 +67,12 @@ Basic implementation of **gRPC** services on the server side.
 
 You need to describe the service abstractly and duplicate this service on the client side.
 
-
 ```python
 from abc import abstractmethod
 
 from py_grpcio import BaseService
 
-from example.server.service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
+from example.base.server.service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
 
 
 class BaseExampleService(BaseService):
@@ -92,8 +91,8 @@ class BaseExampleService(BaseService):
 Full implementation of the **gRPC** service with methods.
 
 ```python
-from example.server.service.base import BaseExampleService
-from example.server.service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
+from example.base.server.service.base import BaseExampleService
+from example.base.server.service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
 
 
 class ExampleService(BaseExampleService):
@@ -112,7 +111,7 @@ Run the ExampleService on Server.
 ```python
 from py_grpcio import BaseServer
 
-from example.server.service import ExampleService
+from example.base.server.service import ExampleService
 
 
 if __name__ == '__main__':
@@ -137,7 +136,7 @@ from abc import abstractmethod
 
 from py_grpcio import BaseService
 
-from example.server.service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
+from example.base.server.service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
 
 
 class ExampleService(BaseService):
@@ -161,8 +160,8 @@ from asyncio import run
 
 from loguru import logger
 
-from example.client.services.example.enums import Names
-from example.client.services.example import (
+from example.base.client.services.example.enums import Names
+from example.base.client.services.example import (
     ExampleService, PingRequest, PingResponse, ComplexModel, ComplexRequest, ComplexResponse
 )
 

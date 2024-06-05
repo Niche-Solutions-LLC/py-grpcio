@@ -1,6 +1,6 @@
 from py_grpcio import BaseServer
 
-from example.server.service import ExampleService
+from service import ExampleService
 
 
 def main() -> None:

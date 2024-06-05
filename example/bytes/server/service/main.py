@@ -1,5 +1,5 @@
-from example.server.service.base import BaseExampleService
-from example.server.service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
+from service.base import BaseExampleService
+from service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
 
 
 class ExampleService(BaseExampleService):
