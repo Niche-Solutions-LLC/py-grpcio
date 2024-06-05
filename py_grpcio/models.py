@@ -4,14 +4,14 @@ from typing_extensions import Annotated
 from types import FunctionType, ModuleType, GenericAlias
 from typing import Type, Any, TypeVar, Iterable, get_origin
 
-from pydantic import BaseModel, ConfigDict, Field as PyField
+from pydantic import BaseModel, ConfigDict, Field as PyField, create_model
 from pydantic.fields import FieldInfo  # noqa: FieldInfo
 from pydantic_core.core_schema import CoreSchema, no_info_wrap_validator_function, str_schema, to_string_ser_schema
 
 from google.protobuf.message import Message as ProtoMessage
 
+from py_grpcio.enums import ServiceModes
 from py_grpcio.exceptions import MethodSignatureException
-
 from py_grpcio.proto import ProtoBufTypes, parse_field_type
 
 Target: 'Target' = TypeVar('Target', bound=partial)
@@ -78,6 +78,7 @@ class ModuleTypePydanticAnnotation:
 
 
 class Method(BaseModel):
+    mode: ServiceModes
     request: Type[Message]
     response: Type[Message]
     target: Target
@@ -88,7 +89,7 @@ class Method(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
-    def from_target(cls, target: FunctionType) -> 'Method':
+    def from_target(cls, target: FunctionType, mode: ServiceModes = ServiceModes.DEFAULT) -> 'Method':
         annotations: dict[str, Any] = target.__annotations__
         if not (requst_message := annotations.get('request')) or not issubclass(requst_message, Message):
             raise MethodSignatureException(
@@ -98,10 +99,15 @@ class Method(BaseModel):
             raise MethodSignatureException(
                 text=f'The `{target.__qualname__}` method should return an object of type subclass `Message`'
             )
-        return cls(target=partial(target, self=target.__class__), request=requst_message, response=response_message)
+        return cls(
+            mode=mode,
+            target=partial(target, self=target.__class__),
+            request=requst_message,
+            response=response_message
+        )
 
     @property
-    def messages(self: 'Method') -> dict[str, Type[Message]]:
+    def default_messages(self: 'Method') -> dict[str, Type[Message]]:
         self.additional_messages.update(self.request.get_additional_messages())
         self.additional_messages.update(self.response.get_additional_messages())
         return {
@@ -109,6 +115,21 @@ class Method(BaseModel):
             self.request.__name__: self.request,
             self.response.__name__: self.response,
         }
+
+    @property
+    def betes_messages(self: 'Method') -> dict[str, Type[Message]]:
+        return {
+            self.request.__name__: create_model(self.request.__name__, bytes=(bytes, ...), __base__=Message),
+            self.response.__name__: create_model(self.response.__name__, bytes=(bytes, ...), __base__=Message),
+        }
+
+    @property
+    def messages(self: 'Method') -> dict[str, Type[Message]]:
+        match self.mode:
+            case ServiceModes.DEFAULT:
+                return self.default_messages
+            case ServiceModes.BYTES:
+                return self.betes_messages
 
     @property
     def proto_request(self: 'Method') -> Type[ProtoMessage] | None:

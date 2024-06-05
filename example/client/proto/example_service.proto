@@ -30,4 +30,3 @@ message ComplexResponse {
     string id = 1;
     ComplexModel model = 2;
 }
-

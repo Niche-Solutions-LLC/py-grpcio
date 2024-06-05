@@ -3,18 +3,18 @@ from pathlib import Path
 
 from py_grpcio.models import Method
 from py_grpcio.method import ClientMethodGRPC
-from py_grpcio.service_meta import BaseServiceMeta
+from py_grpcio.service.meta import BaseServiceMeta
 
 type Delay = float
 
 
 class BaseService(metaclass=BaseServiceMeta):
     def __init__(
-            self: 'BaseService',
-            host='localhost',
-            port: int = 50051,
-            proto_dir: Path = Path('proto'),
-            timeout_delay: Delay = 1
+        self: 'BaseService',
+        host='localhost',
+        port: int = 50051,
+        proto_dir: Path = Path('proto'),
+        timeout_delay: Delay = 1
     ):
         self.host: str = host
         self.port: int = port
