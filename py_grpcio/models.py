@@ -2,7 +2,7 @@ from inspect import isclass
 from functools import partial
 from typing_extensions import Annotated
 from types import FunctionType, ModuleType, GenericAlias
-from typing import Type, Any, TypeVar, Iterable, get_origin
+from typing import Type, Any, TypeVar, Iterable, get_origin, assert_never
 
 from pydantic import BaseModel, ConfigDict, Field as PyField, create_model
 from pydantic.fields import FieldInfo  # noqa: FieldInfo
@@ -84,6 +84,8 @@ class Method(BaseModel):
     mode: ServiceModes
     request: Type[Message]
     response: Type[Message]
+    validation_request: Type[Message]
+    validation_response: Type[Message]
     target: Target
     protos: Annotated[ModuleType, ModuleTypePydanticAnnotation] | None = None
     services: Annotated[ModuleType, ModuleTypePydanticAnnotation] | None = None
@@ -105,8 +107,10 @@ class Method(BaseModel):
         return cls(
             mode=mode,
             target=partial(target, self=target.__class__),
-            request=BytesMessage if mode is mode.BYTES else requst_message,
-            response=BytesMessage if mode is mode.BYTES else response_message
+            request=BytesMessage if mode is ServiceModes.BYTES else requst_message,
+            response=BytesMessage if mode is ServiceModes.BYTES else response_message,
+            validation_request=requst_message,
+            validation_response=response_message
         )
 
     @property
@@ -120,7 +124,7 @@ class Method(BaseModel):
         }
 
     @property
-    def betes_messages(self: 'Method') -> dict[str, Type[Message]]:
+    def bytes_messages(self: 'Method') -> dict[str, Type[Message]]:
         return {'BytesMessage': BytesMessage}
 
     @property
@@ -129,7 +133,9 @@ class Method(BaseModel):
             case ServiceModes.DEFAULT:
                 return self.default_messages
             case ServiceModes.BYTES:
-                return self.betes_messages
+                return self.bytes_messages
+            case _:
+                return assert_never(self.mode)
 
     @property
     def proto_request(self: 'Method') -> Type[ProtoMessage] | None:

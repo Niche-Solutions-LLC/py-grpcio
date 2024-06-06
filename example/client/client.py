@@ -3,7 +3,7 @@ from asyncio import run
 
 from loguru import logger
 
-from services.example import (
+from example.client.services.example import (
     ExampleService, Names,
     PingRequest, PingResponse,
     ComplexModel, ComplexRequest, ComplexResponse

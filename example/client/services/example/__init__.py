@@ -1,5 +1,5 @@
-from services.example.enums import Names
-from services.example.models import (
+from example.client.services.example.enums import Names
+from example.client.services.example.models import (
     PingRequest, PingResponse, ComplexModel, ComplexRequest, ComplexResponse
 )
-from services.example.service import ExampleService
+from example.client.services.example.service import ExampleService

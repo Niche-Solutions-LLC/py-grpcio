@@ -32,7 +32,7 @@ from pydantic import Field
 
 from py_grpcio import Message
 
-from service import Names
+from example.server.service.enums import Names
 
 
 class PingRequest(Message):
@@ -72,7 +72,7 @@ from abc import abstractmethod
 
 from py_grpcio import BaseService
 
-from service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
+from example.server.service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
 
 
 class BaseExampleService(BaseService):
@@ -91,8 +91,8 @@ class BaseExampleService(BaseService):
 Full implementation of the **gRPC** service with methods.
 
 ```python
-from service.base import BaseExampleService
-from service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
+from example.server.service.base import BaseExampleService
+from example.server.service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
 
 
 class ExampleService(BaseExampleService):
@@ -111,7 +111,7 @@ Run the ExampleService on Server.
 ```python
 from py_grpcio import BaseServer
 
-from service import ExampleService
+from example.server.service import ExampleService
 
 
 if __name__ == '__main__':
@@ -136,7 +136,7 @@ from abc import abstractmethod
 
 from py_grpcio import BaseService
 
-from service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
+from example.server.service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
 
 
 class ExampleService(BaseService):
@@ -160,9 +160,8 @@ from asyncio import run
 
 from loguru import logger
 
-from services import Names
-from services import (
-    ExampleService, PingRequest, PingResponse, ComplexModel, ComplexRequest, ComplexResponse
+from example.client.services.example import (
+    ExampleService, PingRequest, PingResponse, ComplexModel, ComplexRequest, ComplexResponse, Names
 )
 
 service: ExampleService = ExampleService(host='127.0.0.1')

@@ -1,0 +1,12 @@
+//Automatically generated
+
+syntax = "proto3";
+package bytes_service;
+
+service BytesService {
+    rpc Test(BytesMessage) returns (BytesMessage) {}
+}
+
+message BytesMessage {
+    bytes bytes = 1;
+}

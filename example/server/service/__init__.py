@@ -1,2 +1,2 @@
-from service.models import PingRequest, PingResponse, ComplexModel, ComplexRequest, ComplexResponse
-from service.main import ExampleService
+from example.server.service.models import PingRequest, PingResponse, ComplexModel, ComplexRequest, ComplexResponse
+from example.server.service.main import ExampleService

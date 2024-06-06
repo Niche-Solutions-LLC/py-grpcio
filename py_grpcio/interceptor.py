@@ -35,13 +35,10 @@ class ServerInterceptor(AsyncServerInterceptor):
         except SendEmpty as exc:
             context.set_code(StatusCode.ABORTED)
             context.set_details(exc.text)
-        except RunTimeServerError as py_grpc_io_exc:
-            logger.error(py_grpc_io_exc)
-            context.set_code(py_grpc_io_exc.status_code)
-            context.set_details(
-                'Internal Server Error'
-                if py_grpc_io_exc.status_code == StatusCode.INTERNAL else py_grpc_io_exc.details
-            )
+        except RunTimeServerError as exc:
+            logger.error(exc)
+            context.set_code(exc.status_code)
+            context.set_details('Internal Server Error' if exc.status_code == StatusCode.INTERNAL else exc.details)
         except ValidationError as exc:
             context.set_code(StatusCode.INVALID_ARGUMENT)
             context.set_details(exc.json())

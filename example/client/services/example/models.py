@@ -5,7 +5,7 @@ from pydantic import Field
 
 from py_grpcio import Message
 
-from service.enums import Names
+from example.client.services.example.enums import Names
 
 
 class PingRequest(Message):

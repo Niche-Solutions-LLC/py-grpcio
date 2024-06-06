@@ -2,7 +2,7 @@ from abc import abstractmethod
 
 from py_grpcio import BaseService
 
-from service.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
+from example.client.services.example.models import PingRequest, PingResponse, ComplexRequest, ComplexResponse
 
 
 class ExampleService(BaseService):
