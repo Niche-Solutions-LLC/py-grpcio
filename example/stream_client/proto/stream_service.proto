@@ -1,0 +1,20 @@
+//Automatically generated
+
+syntax = "proto3";
+package stream_service;
+
+service StreamService {
+    rpc StreamInRequest(stream StreamRequest) returns (StreamResponse) {}
+    rpc StreamInResponse(StreamRequest) returns (stream StreamResponse) {}
+    rpc StreamInRequestAndResponse(stream StreamRequest) returns (stream StreamResponse) {}
+}
+
+message StreamRequest {
+    string id = 1;
+    string name = 2;
+}
+
+message StreamResponse {
+    string id = 1;
+    string text = 2;
+}

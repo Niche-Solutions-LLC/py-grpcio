@@ -1,7 +1,8 @@
 from inspect import isclass
 from functools import partial
+from collections.abc import Iterator
 from typing_extensions import Annotated
-from types import FunctionType, ModuleType, GenericAlias
+from types import FunctionType, ModuleType, GenericAlias, NoneType
 from typing import Type, Any, TypeVar, Iterable, get_origin, assert_never
 
 from pydantic import BaseModel, ConfigDict, Field as PyField, create_model
@@ -90,27 +91,65 @@ class Method(BaseModel):
     protos: Annotated[ModuleType, ModuleTypePydanticAnnotation] | None = None
     services: Annotated[ModuleType, ModuleTypePydanticAnnotation] | None = None
     additional_messages: dict[str, Type[Message]] = PyField(default_factory=dict)
+    request_streaming: bool = False
+    response_streaming: bool = False
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
-    def from_target(cls, target: FunctionType, mode: ServiceModes = ServiceModes.DEFAULT) -> 'Method':
+    def parse_streaming_message_type(cls, param_name: str, args: list[Type[Message] | Any]) -> Type[Message]:
+        if NoneType in args:
+            args.remove(NoneType)
+        if len(args) != 1 or not issubclass(message_type := args[0], Message):
+            raise TypeError(
+                f'The `{param_name}` field of the `Iterator` type must have only one subtype, which is a '
+                f'subclass of type `Message`, not {len(args)}.'
+            )
+        return message_type
+
+    @classmethod
+    def parse_requst(cls, target: FunctionType) -> tuple[Type[Message], bool]:
         annotations: dict[str, Any] = target.__annotations__
-        if not (requst_message := annotations.get('request')) or not issubclass(requst_message, Message):
+        if requests_messages := annotations.get('requests'):
+            if get_origin(tp=requests_messages) is Iterator:
+                return cls.parse_streaming_message_type(param_name='requests', args=requests_messages.__args__), True
+            raise TypeError(f'The `requests` field must be of type `Iterator')
+        elif requst_message := annotations.get('request'):
+            if issubclass(requst_message, Message):
+                return requst_message, False
             raise MethodSignatureException(
                 text=f'Method `{target.__qualname__}` must receive a request parameter of type subclass `Message`'
             )
-        if not (response_message := annotations.get('return')) or not issubclass(response_message, Message):
+        raise MethodSignatureException(text=f'Method `{target.__qualname__}`')
+
+    @classmethod
+    def parse_response(cls, target: FunctionType) -> tuple[Type[Message], bool]:
+        annotations: dict[str, Any] = target.__annotations__
+        if not (response_message := annotations.get('return')):
             raise MethodSignatureException(
                 text=f'The `{target.__qualname__}` method should return an object of type subclass `Message`'
             )
+        if get_origin(tp=response_message) is Iterator:
+            return cls.parse_streaming_message_type(param_name='return', args=response_message.__args__), True
+        elif issubclass(response_message, Message):
+            return response_message, False
+        raise MethodSignatureException(
+            text=f'The `{target.__qualname__}` method should return an object of type subclass `Message`'
+        )
+
+    @classmethod
+    def from_target(cls, target: FunctionType, mode: ServiceModes = ServiceModes.DEFAULT) -> 'Method':
+        requst_message, request_streaming = cls.parse_requst(target=target)
+        response_message, response_streaming = cls.parse_response(target=target)
         return cls(
             mode=mode,
             target=partial(target, self=target.__class__),
             request=BytesMessage if mode is ServiceModes.BYTES else requst_message,
             response=BytesMessage if mode is ServiceModes.BYTES else response_message,
             validation_request=requst_message,
-            validation_response=response_message
+            validation_response=response_message,
+            request_streaming=request_streaming,
+            response_streaming=response_streaming
         )
 
     @property

@@ -28,7 +28,7 @@ TYPE_MAPPING: dict[type, ProtoBufTypes] = {
 def parse_type(field_name: str, python_value: Any, field_type: type, allow_model: bool = True) -> ProtoBufTypes | str:
     if python_value in TYPE_MAPPING:
         return TYPE_MAPPING[python_value]
-    elif (origin := get_origin(python_value)) is not None and origin in (Annotated, Union, UnionType):
+    elif (origin := get_origin(tp=python_value)) is not None and origin in (Annotated, Union, UnionType):
         return parse_type_union(
             field_name=field_name,
             field_type=python_value,
