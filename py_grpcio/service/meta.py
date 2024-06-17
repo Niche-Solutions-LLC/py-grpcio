@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from types import ModuleType
-from typing import Any, Type, Unpack, TypedDict
+from typing import Any, Type, TypedDict, Unpack, NotRequired
 
 from jinja2 import Environment, FileSystemLoader, Template
 
@@ -22,8 +22,8 @@ environment: Environment = Environment(
 )
 
 
-class ExtraKwargs(TypedDict, total=False):
-    mode: ServiceModes
+class ExtraKwargs(TypedDict):
+    mode: NotRequired[ServiceModes]
 
 
 class BaseServiceMeta(type):
@@ -45,11 +45,11 @@ class BaseServiceMeta(type):
         name: str,
         bases: tuple,
         class_dict: dict[str, Any],
-        mode: ServiceModes | None = None
+        **extra: Unpack[ExtraKwargs],
     ):
         super().__init__(name, bases, class_dict)
         cls.name: str = name
-        cls.mode: ServiceModes = mode or class_dict.get('mode', ServiceModes.DEFAULT)
+        cls.mode: ServiceModes = extra.get('mode') or class_dict.get('mode', ServiceModes.DEFAULT)
         cls.methods: dict[str, Method] = {}
         cls.messages: dict[str, Type[Message]] = {}
         cls.protos: ModuleType | None = None
@@ -58,7 +58,10 @@ class BaseServiceMeta(type):
 
     def __getattr__(self: 'BaseServiceMeta', attr_name: str) -> ServerMethodGRPC | Any:
         if method := self.methods.get(camel_to_snake(string=attr_name)):
-            return ServerMethodGRPC(method=method, middlewares=self.middlewares)
+            server_method_grpc: ServerMethodGRPC = ServerMethodGRPC(method=method, middlewares=self.middlewares)
+            if method.request_streaming:
+                return server_method_grpc.__streaming_call__
+            return server_method_grpc
         return getattr(self, attr_name)
 
     def set_middlewares(self: 'BaseServiceMeta', middlewares: set[Type[BaseMiddleware]]) -> None:
@@ -84,9 +87,6 @@ class BaseServiceMeta(type):
         path: Path = proto_dir / f'{camel_to_snake(string=self.name)}.proto'
         path.write_text(data=self.get_proto())
         return path
-
-    def get_method(self: 'BaseServiceMeta', method_name: str) -> ServerMethodGRPC:
-        return ServerMethodGRPC(method=getattr(self, method_name), middlewares=self.middlewares)
 
     def init_protos_and_services(self: 'BaseServiceMeta', proto_dir: Path) -> None:
         self.protos, self.services = protos_and_services(protobuf_path=str(self.gen_proto(proto_dir=proto_dir)))

@@ -1,4 +1,4 @@
-from typing import Any, Type, Callable, assert_never
+from typing import Any, Type, Callable, Iterator, assert_never
 
 from asyncio import to_thread
 from warnings import catch_warnings
@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from grpc import experimental
 from grpc.aio import ServicerContext
+from grpc._cython.cygrpc import _MessageReceiver as MessageReceiver  # noqa: _MessageReceiver
 
 from google.protobuf.message import Message as ProtoMessage
 
@@ -202,6 +203,28 @@ class ClientMethodGRPC(MethodGRPC):
             timeout=self.timeout_delay
         )
         return self.bytes_to_pydantic(message=proto_response, model=self.method.validation_response)
+
+    async def streamig_call(self: 'ClientMethodGRPC', grpc_method: Callable, requests: Iterator[Message]):
+        proto_requests: Iterator[ProtoMessage] = iter(
+            [
+                self.pydantic_to_proto(
+                    message=request,
+                    model=self.method.proto_request,
+                    method=self.method
+                )
+                for request in requests
+            ]
+        )
+        response = grpc_method(request_iterator=proto_requests, target=f'{self.host}:{self.port}', insecure=True)
+        print(response)
+
+    async def __streaming_call__(self: 'ClientMethodGRPC', requests: Iterator[Message]) -> Message | None:
+        print(requests, isinstance(requests, Iterator))
+        grpc_method: Callable = getattr(self.service, snake_to_camel(self.method.target.func.__name__))
+        from inspect import signature
+        print(signature(grpc_method).parameters)
+        await self.streamig_call(grpc_method=grpc_method, requests=requests)
+        return
 
     async def __call__(self: 'ClientMethodGRPC', request: Message) -> Message | None:
         grpc_method: Callable = getattr(self.service, snake_to_camel(self.method.target.func.__name__))
