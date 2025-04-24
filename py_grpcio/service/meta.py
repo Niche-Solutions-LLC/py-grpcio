@@ -28,9 +28,9 @@ class ExtraKwargs(TypedDict, total=False):
 
 class BaseServiceMeta(type):
     def __new__(
-        cls: Type['BaseServiceMeta'],
+        cls,
         name: str,
-        bases: tuple[Type['BaseServiceMeta'], ...],
+        bases: tuple[type['BaseServiceMeta'], ...],
         class_dict: dict[str, Any],
         **extra: Unpack[ExtraKwargs]
     ) -> 'BaseServiceMeta':
@@ -41,7 +41,7 @@ class BaseServiceMeta(type):
         return super().__new__(cls, name, bases, class_dict)
 
     def __init__(
-        cls: 'BaseServiceMeta',
+        cls,
         name: str,
         bases: tuple,
         class_dict: dict[str, Any],
@@ -56,39 +56,39 @@ class BaseServiceMeta(type):
         cls.services: ModuleType | None = None
         cls.middlewares: set[Type[BaseMiddleware]] = set()
 
-    def __getattr__(self: 'BaseServiceMeta', attr_name: str) -> ServerMethodGRPC | Any:
+    def __getattr__(self, attr_name: str) -> ServerMethodGRPC | Any:
         if method := self.methods.get(camel_to_snake(string=attr_name)):
             return ServerMethodGRPC(method=method, middlewares=self.middlewares)
         return getattr(self, attr_name)
 
-    def set_middlewares(self: 'BaseServiceMeta', middlewares: set[Type[BaseMiddleware]]) -> None:
+    def set_middlewares(self, middlewares: set[Type[BaseMiddleware]]) -> None:
         self.middlewares: set[Type[BaseMiddleware]] = middlewares
 
-    def methods_and_messages(self: 'BaseServiceMeta') -> None:
+    def methods_and_messages(self) -> None:
         for method_name, target in self.__dict__.items():
             if is_method(method=target):
                 method: Method = Method.from_target(target=target, mode=self.mode)
                 self.methods[method_name]: Method = method
                 self.messages.update(method.messages)
 
-    def get_proto(self: 'BaseServiceMeta') -> str:
+    def get_proto(self) -> str:
         self.methods_and_messages()
-        template: Template = environment.get_template(name='service.proto.template')
+        template: Template = environment.get_template(name='service.proto.jinja2')
         return template.render(
             service=self,
             camel_to_snake=camel_to_snake,
             snake_to_camel=snake_to_camel
         )
 
-    def gen_proto(self: 'BaseServiceMeta', proto_dir: Path) -> Path:
+    def gen_proto(self, proto_dir: Path) -> Path:
         path: Path = proto_dir / f'{camel_to_snake(string=self.name)}.proto'
         path.write_text(data=self.get_proto())
         return path
 
-    def get_method(self: 'BaseServiceMeta', method_name: str) -> ServerMethodGRPC:
+    def get_method(self, method_name: str) -> ServerMethodGRPC:
         return ServerMethodGRPC(method=getattr(self, method_name), middlewares=self.middlewares)
 
-    def init_protos_and_services(self: 'BaseServiceMeta', proto_dir: Path) -> None:
+    def init_protos_and_services(self, proto_dir: Path) -> None:
         self.protos, self.services = protos_and_services(protobuf_path=str(self.gen_proto(proto_dir=proto_dir)))
         for method in self.methods.values():
             method.protos, method.services = self.protos, self.services
