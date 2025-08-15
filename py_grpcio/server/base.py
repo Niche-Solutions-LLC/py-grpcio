@@ -38,6 +38,7 @@ class BaseServer:
         set_event_loop(self.loop)
 
         self.server: Server = server(interceptors=[ServerInterceptor()])
+        self.server._loop = self.loop
 
         self.services: dict[str, type[BaseService]] = {}
 
