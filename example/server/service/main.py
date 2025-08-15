@@ -3,8 +3,8 @@ from example.server.service.models import PingRequest, PingResponse, ComplexRequ
 
 
 class ExampleService(BaseExampleService):
-    async def ping(self: 'ExampleService', request: PingRequest) -> PingResponse:
+    async def ping(self, request: PingRequest) -> PingResponse:
         return PingResponse(id=request.id)
 
-    async def complex(self: 'ExampleService', request: ComplexRequest) -> ComplexResponse:
+    async def complex(self, request: ComplexRequest) -> ComplexResponse:
         return ComplexResponse(**request.model_dump())

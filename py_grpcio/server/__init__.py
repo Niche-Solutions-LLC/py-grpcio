@@ -1,3 +1,3 @@
-from py_grpcio.server.base import BaseServer, ServerParam, LifespanFunc
+from py_grpcio.server.base import BaseServer, LifespanFunc
 
-__all__: list[str] = ['BaseServer', 'ServerParam', 'LifespanFunc',]
+__all__: list[str] = ['BaseServer', 'LifespanFunc',]

@@ -2,7 +2,7 @@ from inspect import isclass
 from functools import partial
 from typing_extensions import Annotated
 from types import FunctionType, ModuleType, GenericAlias
-from typing import Type, Any, TypeVar, Iterable, get_origin, assert_never
+from typing import Type, Any, Iterable, get_origin, assert_never
 
 from pydantic import BaseModel, ConfigDict, Field as PyField, create_model
 from pydantic.fields import FieldInfo  # noqa: FieldInfo
@@ -14,7 +14,7 @@ from py_grpcio.enums import ServiceModes
 from py_grpcio.exceptions import MethodSignatureException
 from py_grpcio.proto import ProtoBufTypes, parse_field_type
 
-Target: 'Target' = TypeVar('Target', bound=partial)
+type Target = partial
 
 
 class Field(BaseModel):
@@ -46,7 +46,7 @@ class Message(BaseModel):
             field_type: type | None = field_info.annotation
             if isclass(field_type) and issubclass(field_type, Message):
                 messages[field_type.__name__]: Type[Message] = field_type
-                if additional_messages := cls.get_additional_messages(model_fields=field_type.model_fields):
+                if additional_messages := cls.get_additional_messages(model_fields=field_type.__pydantic_fields__):
                     messages.update(**additional_messages)
             elif isinstance(field_type, GenericAlias) and (origin := get_origin(tp=field_type)) is not None:
                 if issubclass(origin, Iterable):
@@ -56,7 +56,9 @@ class Message(BaseModel):
                         )
                     if isclass(sub_field_type := args[0]) and issubclass(sub_field_type, Message):
                         messages[sub_field_type.__name__]: Type[Message] = sub_field_type
-                        if additional_messages := cls.get_additional_messages(model_fields=sub_field_type.model_fields):
+                        if additional_messages := cls.get_additional_messages(
+                            model_fields=sub_field_type.__pydantic_fields__
+                        ):
                             messages.update(**additional_messages)
         return messages
 
@@ -66,7 +68,7 @@ BytesMessage: Type['BytesMessage'] = create_model('BytesMessage', bytes=(bytes, 
 
 class ModuleTypePydanticAnnotation:
     @classmethod
-    def validate_object_id(cls: Type['ModuleTypePydanticAnnotation'], value: Any, _) -> ModuleType:
+    def validate_object_id(cls: Type['ModuleTypePydanticAnnotation'], value: Any, _) -> ModuleType | None:
         if isinstance(value, ModuleType):
             return value
 

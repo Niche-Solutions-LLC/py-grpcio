@@ -11,7 +11,7 @@ type Delay = float
 class BaseService(metaclass=BaseServiceMeta):
     def __init__(
         self: 'BaseService',
-        host='localhost',
+        host: str = 'localhost',
         port: int = 50051,
         proto_dir: Path = Path('proto'),
         timeout_delay: Delay = 1

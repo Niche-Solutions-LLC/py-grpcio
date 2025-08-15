@@ -1,3 +1,4 @@
+from abc import ABCMeta
 from pathlib import Path
 
 from types import ModuleType
@@ -26,7 +27,7 @@ class ExtraKwargs(TypedDict, total=False):
     mode: ServiceModes
 
 
-class BaseServiceMeta(type):
+class BaseServiceMeta(ABCMeta):
     def __new__(
         cls,
         name: str,
@@ -37,7 +38,11 @@ class BaseServiceMeta(type):
         class_dict.update(extra)
         class_dict['__extra__']: ExtraKwargs = extra
         for base in bases:
-            class_dict.update(base.__extra__)
+            if base_extra := getattr(base, '__extra__', None):
+                class_dict.update(base_extra)
+        for method_name, method in class_dict.items():
+            if is_method(method):
+                method.__isabstractmethod__ = False
         return super().__new__(cls, name, bases, class_dict)
 
     def __init__(
@@ -45,11 +50,12 @@ class BaseServiceMeta(type):
         name: str,
         bases: tuple,
         class_dict: dict[str, Any],
-        mode: ServiceModes | None = None
+        mode: ServiceModes | None = None,
+        **_extra: Unpack[ExtraKwargs]
     ):
         super().__init__(name, bases, class_dict)
         cls.name: str = name
-        cls.mode: ServiceModes = mode or class_dict.get('mode', ServiceModes.DEFAULT)
+        cls.mode: ServiceModes = mode if mode is not None else class_dict.get('mode', ServiceModes.DEFAULT)
         cls.methods: dict[str, Method] = {}
         cls.messages: dict[str, Type[Message]] = {}
         cls.protos: ModuleType | None = None
