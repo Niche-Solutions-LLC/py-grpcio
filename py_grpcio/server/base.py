@@ -3,7 +3,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Callable, Awaitable
 
-from asyncio import AbstractEventLoop, set_event_loop, new_event_loop
+from asyncio import AbstractEventLoop, Event, set_event_loop, new_event_loop
 
 from loguru import logger
 
@@ -29,16 +29,17 @@ class BaseServer:
         on_shutdown: LifespanFunc | None = None,
         loop: AbstractEventLoop | None = None,
         loop_factory: Callable[..., AbstractEventLoop] = new_event_loop,
+        shutdown_event: Event | None = None,
     ):
         self.port: int = port
         self.proto_dir: Path = proto_dir
         self.proto_dir.mkdir(exist_ok=True)
 
         self.loop: AbstractEventLoop = loop or loop_factory()
+        self.shutdown_event: Event | None = shutdown_event
         set_event_loop(self.loop)
 
         self.server: Server = server(interceptors=[ServerInterceptor()])
-        self.server._loop = self.loop
 
         self.services: dict[str, type[BaseService]] = {}
 
@@ -59,6 +60,9 @@ class BaseServer:
     async def start_server(self) -> None:
         await self.server.start()
         logger.info('Server has been launched!')
+        if self.shutdown_event is not None:
+            await self.shutdown_event.wait()
+            await self.server.stop(None)
         await self.server.wait_for_termination()
 
     def run(self) -> None:
