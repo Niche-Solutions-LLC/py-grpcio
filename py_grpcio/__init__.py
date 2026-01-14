@@ -4,13 +4,15 @@ from py_grpcio.enums import ServiceModes
 from py_grpcio.service import BaseService
 from py_grpcio.middleware import BaseMiddleware
 
-from py_grpcio.__meta__ import __version__, __module_path__
+from py_grpcio.__meta__ import __package_name__, __version__, __module_path__
 
 __all__: list[str] = [
     'BaseServer',
-    'BaseService', 'ServiceModes',
+    'BaseService',
+    'ServiceModes',
     'BaseMiddleware',
     'Message',
+    '__package_name__',
     '__version__',
-    '__module_path__'
+    '__module_path__',
 ]

@@ -12,10 +12,12 @@ from google.protobuf.message import Message
 from py_grpcio.method import ServerMethodGRPC
 from py_grpcio.exceptions import SendEmpty, RunTimeServerError
 
+type ServerInterceptorType = ServerInterceptor
+
 
 class ServerInterceptor(AsyncServerInterceptor):
     async def intercept(
-        self: 'ServerInterceptor',
+        self: ServerInterceptorType,
         route: ServerMethodGRPC,
         message: Message,
         context: ServicerContext,

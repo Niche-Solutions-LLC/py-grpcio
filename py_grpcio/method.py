@@ -21,19 +21,22 @@ from py_grpcio.proto.enums import ProtoBufTypes
 
 type Delay = float
 type Service = type
+type MethodGRPCType = MethodGRPC
+type ServerMethodGRPCType = ServerMethodGRPC
+type ClientMethodGRPCType = ClientMethodGRPC
 type MethodType = Callable[[ProtoMessage, str, bool], ProtoMessage]
 
 
 class MethodGRPC:
-    def __init__(self: 'MethodGRPC', method: Method):
+    def __init__(self: MethodGRPCType, method: Method):
         self.method: Method = method
 
-    def __getattr__(self: 'MethodGRPC', attr_name: str) -> Any:
+    def __getattr__(self: MethodGRPCType, attr_name: str) -> Any:
         return getattr(self.method.target.func, attr_name)
 
     @classmethod
     def proto_to_pydantic(
-        cls: Type['MethodGRPC'],
+        cls: Type[MethodGRPCType],
         message: ProtoMessage,
         model: Type[Message],
         method: Method
@@ -51,7 +54,7 @@ class MethodGRPC:
 
     @classmethod
     def pydantic_to_proto(
-        cls: Type['MethodGRPC'],
+        cls: Type[MethodGRPCType],
         message: Message,
         model: Type[ProtoMessage],
         method: Method,
@@ -79,12 +82,12 @@ class MethodGRPC:
         return model(**params)  # noqa: args, kwargs
 
     @classmethod
-    def pydantic_to_bytes(cls: Type['MethodGRPC'], message: Message, method: Method) -> ProtoMessage:
+    def pydantic_to_bytes(cls: Type[MethodGRPCType], message: Message, method: Method) -> ProtoMessage:
         message_type: Type[ProtoMessage] = method.get_additional_proto(proto_name='BytesMessage')
         return message_type(bytes=message.model_dump_json().encode())  # noqa: bytes
 
     @classmethod
-    def bytes_to_pydantic(cls: Type['MethodGRPC'], message: ProtoMessage, model: Type[Message]) -> Message:
+    def bytes_to_pydantic(cls: Type[MethodGRPCType], message: ProtoMessage, model: Type[Message]) -> Message:
         return model.model_validate_json(json_data=getattr(message, 'bytes').decode())
 
 
@@ -111,7 +114,7 @@ class ServerMethodGRPC(MethodGRPC):
         return response
 
     async def default_call(
-        self: 'ServerMethodGRPC',
+        self: ServerMethodGRPCType,
         message: ProtoMessage,
         context: ServicerContext
     ) -> ProtoMessage | None:
@@ -127,7 +130,7 @@ class ServerMethodGRPC(MethodGRPC):
             raise RunTimeServerError(details={'validation_error': exc.json()})
 
     async def bytes_call(
-        self: 'ServerMethodGRPC',
+        self: ServerMethodGRPCType,
         message: ProtoMessage,
         context: ServicerContext
     ) -> ProtoMessage | None:
@@ -139,7 +142,7 @@ class ServerMethodGRPC(MethodGRPC):
             raise RunTimeServerError(details={'validation_error': exc.json()})
 
     async def __call__(
-        self: 'ServerMethodGRPC',
+        self: ServerMethodGRPCType,
         message: ProtoMessage,
         context: ServicerContext
     ) -> ProtoMessage | None:
@@ -154,7 +157,7 @@ class ServerMethodGRPC(MethodGRPC):
 
 class ClientMethodGRPC(MethodGRPC):
     def __init__(
-        self: 'ClientMethodGRPC',
+        self: ClientMethodGRPCType,
         method: Method,
         service_name: str,
         host: str,
@@ -169,15 +172,15 @@ class ClientMethodGRPC(MethodGRPC):
         self.timeout_delay: Delay = timeout_delay
 
     @property
-    def service(self: 'ClientMethodGRPC') -> Service:
+    def service(self: ClientMethodGRPCType) -> Service:
         return getattr(self.method.services, f'{self.service_name}')
 
     @classmethod
-    async def call_grpc_method(cls: Type['ClientMethodGRPC'], method: MethodType, **kwargs) -> ProtoMessage:
+    async def call_grpc_method(cls: Type[ClientMethodGRPCType], method: MethodType, **kwargs) -> ProtoMessage:
         with catch_warnings(action='ignore', category=experimental.ExperimentalApiWarning):
             return await to_thread(method, **kwargs)
 
-    async def default_call(self: 'ClientMethodGRPC', grpc_method: Callable, request: Message) -> Message | None:
+    async def default_call(self: ClientMethodGRPCType, grpc_method: Callable, request: Message) -> Message | None:
         proto_request: ProtoMessage = self.pydantic_to_proto(
             message=request,
             model=self.method.proto_request,
@@ -192,7 +195,7 @@ class ClientMethodGRPC(MethodGRPC):
         )
         return self.proto_to_pydantic(message=proto_response, model=self.method.response, method=self.method)
 
-    async def bytes_call(self: 'ClientMethodGRPC', grpc_method: Callable, request: Message) -> Message | None:
+    async def bytes_call(self: ClientMethodGRPCType, grpc_method: Callable, request: Message) -> Message | None:
         proto_request: ProtoMessage = self.pydantic_to_bytes(message=request, method=self.method)
         proto_response: ProtoMessage = await self.call_grpc_method(
             method=grpc_method,
@@ -203,7 +206,7 @@ class ClientMethodGRPC(MethodGRPC):
         )
         return self.bytes_to_pydantic(message=proto_response, model=self.method.validation_response)
 
-    async def __call__(self: 'ClientMethodGRPC', request: Message) -> Message | None:
+    async def __call__(self: ClientMethodGRPCType, request: Message) -> Message | None:
         grpc_method: Callable = getattr(self.service, snake_to_camel(self.method.target.func.__name__))
         match self.method.mode:
             case ServiceModes.DEFAULT:

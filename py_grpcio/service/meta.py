@@ -10,10 +10,10 @@ from grpc import protos_and_services
 
 from py_grpcio.__meta__ import __module_path__
 
-from py_grpcio.enums import ServiceModes
 from py_grpcio.models import Message, Method
 from py_grpcio.method import ServerMethodGRPC
 from py_grpcio.middleware import BaseMiddleware
+from py_grpcio.enums import ServiceModesType, ServiceModes
 
 from py_grpcio.utils import is_method, camel_to_snake, snake_to_camel
 
@@ -50,12 +50,12 @@ class BaseServiceMeta(ABCMeta):
         name: str,
         bases: tuple,
         class_dict: dict[str, Any],
-        mode: ServiceModes | None = None,
+        mode: ServiceModesType | None = None,
         **_extra: Unpack[ExtraKwargs]
     ):
         super().__init__(name, bases, class_dict)
         cls.name: str = name
-        cls.mode: ServiceModes = mode if mode is not None else class_dict.get('mode', ServiceModes.DEFAULT)
+        cls.mode: ServiceModesType = mode if mode is not None else class_dict.get('mode', ServiceModes.DEFAULT)
         cls.methods: dict[str, Method] = {}
         cls.messages: dict[str, Type[Message]] = {}
         cls.protos: ModuleType | None = None

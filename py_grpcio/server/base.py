@@ -14,6 +14,13 @@ from py_grpcio.service import BaseService
 from py_grpcio.middleware import BaseMiddleware
 from py_grpcio.interceptor import ServerInterceptor
 
+try:
+    from __meta__ import __src_path__
+except ImportError:
+    __src_path__: Path = Path()
+
+DEFAULT_PROTO_DIR: Path = __src_path__ / 'proto'
+
 type ServerType = BaseServer
 
 type LifespanFunc = Callable[[ServerType], Awaitable[None]]
@@ -23,7 +30,7 @@ class BaseServer:
     def __init__(
         self,
         port: int = 50051,
-        proto_dir: Path = Path('proto'),
+        proto_dir: Path = DEFAULT_PROTO_DIR,
         middlewares: set[type[BaseMiddleware]] | None = None,
         on_startup: LifespanFunc | None = None,
         on_shutdown: LifespanFunc | None = None,

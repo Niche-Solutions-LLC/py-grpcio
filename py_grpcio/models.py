@@ -4,17 +4,22 @@ from typing_extensions import Annotated
 from types import FunctionType, ModuleType, GenericAlias
 from typing import Type, Any, Iterable, get_origin, assert_never
 
-from pydantic import BaseModel, ConfigDict, Field as PyField, create_model
 from pydantic.fields import FieldInfo  # noqa: FieldInfo
+from pydantic import BaseModel, ConfigDict, Field as PyField, create_model
 from pydantic_core.core_schema import CoreSchema, no_info_wrap_validator_function, str_schema, to_string_ser_schema
 
 from google.protobuf.message import Message as ProtoMessage
 
-from py_grpcio.enums import ServiceModes
 from py_grpcio.exceptions import MethodSignatureException
+from py_grpcio.enums import ServiceModesType, ServiceModes
 from py_grpcio.proto import ProtoBufTypes, parse_field_type
 
 type Target = partial
+
+type FieldType = Field
+type MessageType = Message
+type BytesMessageType = BytesMessage
+type MethodType = Method
 
 
 class Field(BaseModel):
@@ -25,13 +30,13 @@ class Field(BaseModel):
     map_value: str | None = None
 
     @classmethod
-    def from_field_info(cls: Type['Field'], field_name: str, field_info: FieldInfo) -> 'Field':
+    def from_field_info(cls: Type[FieldType], field_name: str, field_info: FieldInfo) -> FieldType:
         return cls(**parse_field_type(field_name=field_name, field_type=field_info.annotation))
 
 
 class Message(BaseModel):
     @classmethod
-    def fields(cls: Type['Message']) -> list[Field]:
+    def fields(cls) -> list[Field]:
         return [
             Field.from_field_info(field_name=field_name, field_info=field_info)
             for field_name, field_info in cls.model_fields.items()
@@ -40,8 +45,8 @@ class Message(BaseModel):
     @classmethod
     def get_additional_messages(
         cls, model_fields: dict[str, FieldInfo] | None = None
-    ) -> dict[str, Type['Message']]:
-        messages: dict[str, Type[Message]] = {}
+    ) -> dict[str, Type[MessageType]]:
+        messages: dict[str, Type[MessageType]] = {}
         for field_name, field_info in (cls.model_fields if model_fields is None else model_fields).items():
             field_type: type | None = field_info.annotation
             if isclass(field_type) and issubclass(field_type, Message):
@@ -63,17 +68,17 @@ class Message(BaseModel):
         return messages
 
 
-BytesMessage: Type['BytesMessage'] = create_model('BytesMessage', bytes=(bytes, ...), __base__=Message)
+BytesMessage: Type[BytesMessageType] = create_model('BytesMessage', bytes=(bytes, ...), __base__=Message)
 
 
 class ModuleTypePydanticAnnotation:
     @classmethod
-    def validate_object_id(cls: Type['ModuleTypePydanticAnnotation'], value: Any, _) -> ModuleType | None:
+    def validate_object_id(cls, value: Any, _) -> ModuleType | None:
         if isinstance(value, ModuleType):
             return value
 
     @classmethod
-    def __get_pydantic_core_schema__(cls: Type['ModuleTypePydanticAnnotation'], source_type: type, _) -> CoreSchema:
+    def __get_pydantic_core_schema__(cls, source_type: type, _) -> CoreSchema:
         assert source_type is ModuleType
         return no_info_wrap_validator_function(
             cls.validate_object_id,
@@ -83,7 +88,7 @@ class ModuleTypePydanticAnnotation:
 
 
 class Method(BaseModel):
-    mode: ServiceModes
+    mode: ServiceModesType
     request: Type[Message]
     response: Type[Message]
     validation_request: Type[Message]
@@ -96,7 +101,7 @@ class Method(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
-    def from_target(cls, target: FunctionType, mode: ServiceModes = ServiceModes.DEFAULT) -> 'Method':
+    def from_target(cls, target: FunctionType, mode: ServiceModesType = ServiceModes.DEFAULT) -> MethodType:
         annotations: dict[str, Any] = target.__annotations__
         if not (requst_message := annotations.get('request')) or not issubclass(requst_message, Message):
             raise MethodSignatureException(
@@ -116,7 +121,7 @@ class Method(BaseModel):
         )
 
     @property
-    def default_messages(self: 'Method') -> dict[str, Type[Message]]:
+    def default_messages(self) -> dict[str, Type[Message]]:
         self.additional_messages.update(self.request.get_additional_messages())
         self.additional_messages.update(self.response.get_additional_messages())
         return {
@@ -126,11 +131,11 @@ class Method(BaseModel):
         }
 
     @property
-    def bytes_messages(self: 'Method') -> dict[str, Type[Message]]:
+    def bytes_messages(self) -> dict[str, Type[Message]]:
         return {'BytesMessage': BytesMessage}
 
     @property
-    def messages(self: 'Method') -> dict[str, Type[Message]]:
+    def messages(self) -> dict[str, Type[Message]]:
         match self.mode:
             case ServiceModes.DEFAULT:
                 return self.default_messages
@@ -140,15 +145,15 @@ class Method(BaseModel):
                 return assert_never(self.mode)
 
     @property
-    def proto_request(self: 'Method') -> Type[ProtoMessage] | None:
+    def proto_request(self) -> Type[ProtoMessage] | None:
         return getattr(self.protos, self.request.__name__)
 
     @property
-    def proto_response(self: 'Method') -> Type[ProtoMessage] | None:
+    def proto_response(self) -> Type[ProtoMessage] | None:
         return getattr(self.protos, self.response.__name__)
 
-    def get_additional_proto(self: 'Method', proto_name: str) -> Type[ProtoMessage] | None:
+    def get_additional_proto(self, proto_name: str) -> Type[ProtoMessage] | None:
         return getattr(self.protos, proto_name)
 
-    def get_additional_message(self: 'Method', message_name: str) -> Type[Message] | None:
+    def get_additional_message(self, message_name: str) -> Type[Message] | None:
         return self.additional_messages.get(message_name)
