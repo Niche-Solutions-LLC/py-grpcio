@@ -11,15 +11,9 @@ from grpc.aio import server
 from grpc.aio._server import Server  # noqa: _server
 
 from py_grpcio.service import BaseService
+from py_grpcio.consts import DEFAULT_PROTO_DIR
 from py_grpcio.middleware import BaseMiddleware
 from py_grpcio.interceptor import ServerInterceptor
-
-try:
-    from __meta__ import __src_path__
-except ImportError:
-    __src_path__: Path = Path()
-
-DEFAULT_PROTO_DIR: Path = __src_path__ / 'proto'
 
 type ServerType = BaseServer
 

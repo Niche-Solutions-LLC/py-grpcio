@@ -3,14 +3,8 @@ from pathlib import Path
 
 from py_grpcio.models import Method
 from py_grpcio.method import ClientMethodGRPC
+from py_grpcio.consts import DEFAULT_PROTO_DIR
 from py_grpcio.service.meta import BaseServiceMeta
-
-try:
-    from __meta__ import __src_path__
-except ImportError:
-    __src_path__: Path = Path()
-
-DEFAULT_PROTO_DIR: Path = __src_path__ / 'proto'
 
 type Delay = float
 type ServiceType = BaseService
